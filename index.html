@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Punktestand</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --background: #f3f4f6;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background);
+            color: var(--text);
+            margin: 0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 12px;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .btn-group-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        button {
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: 2px solid #e5e7eb;
+            background: #ffffff;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button.selected {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .submit-btn {
+            width: 100%;
+            background-color: #10b981;
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .submit-btn:active {
+            background-color: #059669;
+        }
+
+        /* Live Tabelle */
+        .scoreboard {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .scoreboard th, .scoreboard td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .scoreboard th {
+            background-color: #f9fafb;
+            font-size: 0.9rem;
+        }
+
+        .scoreboard td {
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        .reset-btn {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Live Punktestand</h1>
+
+    <!-- Eingabe-Bereich -->
+    <div class="card">
+        <h2>1. Kategorie wählen</h2>
+        <div id="category-buttons" class="btn-group">
+            <!-- Wird per Script gefüllt -->
+        </div>
+
+        <h2>2. Punkte wählen</h2>
+        <div id="points-buttons" class="btn-group">
+            <!-- Wird per Script gefüllt -->
+        </div>
+
+        <h2>3. Gewinner-Gruppe</h2>
+        <div id="group-buttons" class="btn-group-2">
+            <!-- Wird per Script gefüllt -->
+        </div>
+
+        <button class="submit-btn" onclick="addPoints()">Punkte eintragen</button>
+    </div>
+
+    <!-- Anzeige-Bereich -->
+    <div class="card">
+        <h2>Live-Rangliste</h2>
+        <table class="scoreboard">
+            <thead>
+                <tr>
+                    <th>Gruppe</th>
+                    <th>Punkte</th>
+                </tr>
+            Ref>
+            <tbody id="scoreboard-body">
+                <!-- Live Daten -->
+            </tbody>
+        </table>
+        <button class="reset-btn" onclick="resetData()">Alle Punkte zurücksetzen</button>
+    </div>
+</div>
+
+<script>
+    // Konfiguration
+    const categories = ["Kat 1", "Kat 2", "Kat 3", "Kat 4", "Kat 5"];
+    const pointValues = [50, 60, 70, 80, 90, 100];
+    const groups = ["Gruppe A", "Gruppe B"]; // Kannst du hier anpassen (z.B. Team 1, Team 2)
+
+    let selectedCategory = null;
+    let selectedPoints = null;
+    let selectedGroup = null;
+
+    // Speicher für Punkte (initialisiert mit 0)
+    let scores = {};
+    groups.forEach(g => scores[g] = 0);
+
+    // Elemente im UI initialisieren
+    function initUI() {
+        // Kategorien Buttons
+        const catContainer = document.getElementById('category-buttons');
+        categories.forEach(cat => {
+            const btn = document.createElement('button');
+            btn.innerText = cat;
+            btn.onclick = () => selectOption('category', cat, btn);
+            catContainer.appendChild(btn);
+        });
+
+        // Punkte Buttons
+        const ptsContainer = document.getElementById('points-buttons');
+        pointValues.forEach(pts => {
+            const btn = document.createElement('button');
+            btn.innerText = pts;
+            btn.onclick = () => selectOption('points', pts, btn);
+            ptsContainer.appendChild(btn);
+        });
+
+        // Gruppen Buttons
+        const grpContainer = document.getElementById('group-buttons');
+        groups.forEach(grp => {
+            const btn = document.createElement('button');
+            btn.innerText = grp;
+            btn.onclick = () => selectOption('group', grp, btn);
+            grpContainer.appendChild(btn);
+        });
+
+        updateScoreboard();
+    }
+
+    // Auswahl-Logik mit visuellem Feedback
+    function selectOption(type, value, element) {
+        // Vorherige Auswahl in derselben Gruppe aufheben
+        const parent = element.parentElement;
+        Array.from(parent.children).forEach(child => child.classList.remove('selected'));
+        
+        // Neu markieren
+        element.classList.add('selected');
+
+        if (type === 'category') selectedCategory = value;
+        if (type === 'points') selectedPoints = value;
+        if (type === 'group') selectedGroup = value;
+    }
+
+    // Punkte hinzufügen
+    function addPoints() {
+        if (!selectedCategory || !selectedPoints || !selectedGroup) {
+            alert("Bitte wähle eine Kategorie, Punkte und eine Gruppe aus!");
+            return;
+        }
+
+        // Punkte addieren
+        scores[selectedGroup] += selectedPoints;
+
+        // UI aktualisieren
+        updateScoreboard();
+
+        // Eingaben zurücksetzen (optional, behält Kategorie ggf. bei)
+        // Hier setzen wir alles zurück für die nächste Runde:
+        resetSelection();
+    }
+
+    function resetSelection() {
+        selectedCategory = null;
+        selectedPoints = null;
+        selectedGroup = null;
+        document.querySelectorAll('.card button').forEach(b => {
+            if(!b.classList.contains('submit-btn') && !b.classList.contains('reset-btn')) {
+                b.classList.remove('selected');
+            }
+        });
+    }
+
+    // Tabelle aktualisieren
+    function updateScoreboard() {
+        const tbody = document.getElementById('scoreboard-body');
+        tbody.innerHTML = '';
+
+        // Nach Punkten sortieren (höchste zuerst)
+        const sortedGroups = Object.keys(scores).sort((a, b) => scores[b] - scores[a]);
+
+        sortedGroups.forEach(group => {
+            const row = document.createElement('tr');
+            row.innerHTML = `<td>${group}</td><td>${scores[group]}</td>`;
+            tbody.appendChild(row);
+        });
+    }
+
+    // Alles zurücksetzen
+    function resetData() {
+        if(confirm("Wirklich alle Punkte auf 0 zurücksetzen?")) {
+            groups.forEach(g => scores[g] = 0);
+            updateScoreboard();
+            resetSelection();
+        }
+    }
+
+    // Starten beim Laden
+    window.onload = initUI;
+</script>
+
+</body>
+</html>
