@@ -362,7 +362,7 @@
 
     function checkSpecialRuleNotice() {
         const notice = document.getElementById('rule-notice');
-        if ((selectedCategory === "Kat 3" || selectedCategory === "Kat 5") && selectedPoints === 90) {
+        if ((selectedCategory === "Ja & Amen" || selectedCategory === "Listen and Repeat") && selectedPoints === 90) {
             notice.style.display = 'block';
         } else {
             notice.style.display = 'none';
@@ -377,8 +377,8 @@
 
         let ptsToAdd = selectedPoints;
 
-        // Regel: Kat 3 & Kat 5 mit 90 Punkten -> Punkte abziehen!
-        if ((selectedCategory === "Kat 3" || selectedCategory === "Kat 5") && selectedPoints === 90) {
+        // Regel: Ja & Amen & Listen and Repeat mit 90 Punkten -> Punkte abziehen!
+        if ((selectedCategory === "Ja & Amen" || selectedCategory === "Listen and Repeat") && selectedPoints === 90) {
             ptsToAdd = -90;
         }
 
