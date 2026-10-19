@@ -56,7 +56,7 @@
             margin-bottom: 12px;
         }
 
-        .btn-group-2 {
+        .btn-group-4 {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 8px;
@@ -65,13 +65,14 @@
 
         button {
             padding: 12px;
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 600;
             border: 2px solid #e5e7eb;
             background: #ffffff;
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s;
+            word-break: break-word;
         }
 
         button.selected {
@@ -97,6 +98,16 @@
             background-color: #059669;
         }
 
+        .rule-notice {
+            font-size: 0.85rem;
+            color: #d97706;
+            background-color: #fef3c7;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            display: none;
+        }
+
         /* Live Tabelle */
         .scoreboard {
             width: 100%;
@@ -120,15 +131,62 @@
             font-weight: bold;
         }
 
+        .action-btns {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
         .reset-btn {
+            flex: 1;
             background-color: #ef4444;
             color: white;
             border: none;
-            padding: 8px 12px;
+            padding: 10px;
             font-size: 0.85rem;
             border-radius: 6px;
             cursor: pointer;
-            margin-top: 15px;
+        }
+
+        .edit-btn {
+            flex: 1;
+            background-color: #6b7280;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        /* Modal / Pop-up für Gruppennamen */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 10px;
+            margin: 6px 0 14px 0;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1rem;
         }
     </style>
 </head>
@@ -140,19 +198,17 @@
     <!-- Eingabe-Bereich -->
     <div class="card">
         <h2>1. Kategorie wählen</h2>
-        <div id="category-buttons" class="btn-group">
-            <!-- Wird per Script gefüllt -->
-        </div>
+        <div id="category-buttons" class="btn-group"></div>
 
         <h2>2. Punkte wählen</h2>
-        <div id="points-buttons" class="btn-group">
-            <!-- Wird per Script gefüllt -->
+        <div id="points-buttons" class="btn-group"></div>
+
+        <div id="rule-notice" class="rule-notice">
+            ⚠️ <strong>Sonderregel:</strong> Bei Kat 3 & Kat 5 werden 90 Punkte **abgezogen**!
         </div>
 
         <h2>3. Gewinner-Gruppe</h2>
-        <div id="group-buttons" class="btn-group-2">
-            <!-- Wird per Script gefüllt -->
-        </div>
+        <div id="group-buttons" class="btn-group-4"></div>
 
         <button class="submit-btn" onclick="addPoints()">Punkte eintragen</button>
     </div>
@@ -166,33 +222,102 @@
                     <th>Gruppe</th>
                     <th>Punkte</th>
                 </tr>
-            Ref>
-            <tbody id="scoreboard-body">
-                <!-- Live Daten -->
-            </tbody>
+            </thead>
+            <tbody id="scoreboard-body"></tbody>
         </table>
-        <button class="reset-btn" onclick="resetData()">Alle Punkte zurücksetzen</button>
+        
+        <div class="action-btns">
+            <button class="edit-btn" onclick="setupGroupNames(true)">Namen ändern</button>
+            <button class="reset-btn" onclick="resetData()">Punkte zurücksetzen</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal für Gruppennamen -->
+<div id="nameModal" class="modal">
+    <div class="modal-content">
+        <h2>Gruppennamen festlegen</h2>
+        <label>Gruppe 1:</label>
+        <input type="text" id="g1" placeholder="Name Gruppe 1">
+        
+        <label>Gruppe 2:</label>
+        <input type="text" id="g2" placeholder="Name Gruppe 2">
+        
+        <label>Gruppe 3:</label>
+        <input type="text" id="g3" placeholder="Name Gruppe 3">
+        
+        <label>Gruppe 4:</label>
+        <input type="text" id="g4" placeholder="Name Gruppe 4">
+        
+        <button class="submit-btn" onclick="saveGroupNames()">Speichern & Starten</button>
     </div>
 </div>
 
 <script>
-    // Konfiguration
     const categories = ["Kat 1", "Kat 2", "Kat 3", "Kat 4", "Kat 5"];
     const pointValues = [50, 60, 70, 80, 90, 100];
-    const groups = ["Gruppe A", "Gruppe B"]; // Kannst du hier anpassen (z.B. Team 1, Team 2)
+    
+    let groupNames = [];
+    let scores = {};
 
     let selectedCategory = null;
     let selectedPoints = null;
     let selectedGroup = null;
 
-    // Speicher für Punkte (initialisiert mit 0)
-    let scores = {};
-    groups.forEach(g => scores[g] = 0);
+    function init() {
+        // Daten aus localStorage laden, falls vorhanden
+        const savedNames = localStorage.getItem('groupNames');
+        const savedScores = localStorage.getItem('scores');
 
-    // Elemente im UI initialisieren
-    function initUI() {
-        // Kategorien Buttons
+        if (savedNames && savedScores) {
+            groupNames = JSON.parse(savedNames);
+            scores = JSON.parse(savedScores);
+            renderUI();
+        } else {
+            // Erstmalige Einrichtung der Namen
+            setupGroupNames(false);
+        }
+    }
+
+    function setupGroupNames(isEditing = false) {
+        if (isEditing) {
+            document.getElementById('g1').value = groupNames[0] || '';
+            document.getElementById('g2').value = groupNames[1] || '';
+            document.getElementById('g3').value = groupNames[2] || '';
+            document.getElementById('g4').value = groupNames[3] || '';
+        }
+        document.getElementById('nameModal').style.display = 'flex';
+    }
+
+    function saveGroupNames() {
+        const name1 = document.getElementById('g1').value.trim() || "Gruppe 1";
+        const name2 = document.getElementById('g2').value.trim() || "Gruppe 2";
+        const name3 = document.getElementById('g3').value.trim() || "Gruppe 3";
+        const name4 = document.getElementById('g4').value.trim() || "Gruppe 4";
+
+        const newGroupNames = [name1, name2, name3, name4];
+        
+        // Punkte-Objekt anpassen/erstellen
+        let newScores = {};
+        newGroupNames.forEach(name => {
+            newScores[name] = scores[name] !== undefined ? scores[name] : 0;
+        });
+
+        groupNames = newGroupNames;
+        scores = newScores;
+
+        // Im Browser speichern
+        localStorage.setItem('groupNames', JSON.stringify(groupNames));
+        localStorage.setItem('scores', JSON.stringify(scores));
+
+        document.getElementById('nameModal').style.display = 'none';
+        renderUI();
+    }
+
+    function renderUI() {
+        // Kategorien
         const catContainer = document.getElementById('category-buttons');
+        catContainer.innerHTML = '';
         categories.forEach(cat => {
             const btn = document.createElement('button');
             btn.innerText = cat;
@@ -200,8 +325,9 @@
             catContainer.appendChild(btn);
         });
 
-        // Punkte Buttons
+        // Punkte
         const ptsContainer = document.getElementById('points-buttons');
+        ptsContainer.innerHTML = '';
         pointValues.forEach(pts => {
             const btn = document.createElement('button');
             btn.innerText = pts;
@@ -209,9 +335,10 @@
             ptsContainer.appendChild(btn);
         });
 
-        // Gruppen Buttons
+        // Gruppen
         const grpContainer = document.getElementById('group-buttons');
-        groups.forEach(grp => {
+        grpContainer.innerHTML = '';
+        groupNames.forEach(grp => {
             const btn = document.createElement('button');
             btn.innerText = grp;
             btn.onclick = () => selectOption('group', grp, btn);
@@ -221,35 +348,46 @@
         updateScoreboard();
     }
 
-    // Auswahl-Logik mit visuellem Feedback
     function selectOption(type, value, element) {
-        // Vorherige Auswahl in derselben Gruppe aufheben
         const parent = element.parentElement;
         Array.from(parent.children).forEach(child => child.classList.remove('selected'));
-        
-        // Neu markieren
         element.classList.add('selected');
 
         if (type === 'category') selectedCategory = value;
         if (type === 'points') selectedPoints = value;
         if (type === 'group') selectedGroup = value;
+
+        checkSpecialRuleNotice();
     }
 
-    // Punkte hinzufügen
+    function checkSpecialRuleNotice() {
+        const notice = document.getElementById('rule-notice');
+        if ((selectedCategory === "Kat 3" || selectedCategory === "Kat 5") && selectedPoints === 90) {
+            notice.style.display = 'block';
+        } else {
+            notice.style.display = 'none';
+        }
+    }
+
     function addPoints() {
         if (!selectedCategory || !selectedPoints || !selectedGroup) {
-            alert("Bitte wähle eine Kategorie, Punkte und eine Gruppe aus!");
+            alert("Bitte wähle Kategorie, Punkte und eine Gruppe aus!");
             return;
         }
 
-        // Punkte addieren
-        scores[selectedGroup] += selectedPoints;
+        let ptsToAdd = selectedPoints;
 
-        // UI aktualisieren
+        // Regel: Kat 3 & Kat 5 mit 90 Punkten -> Punkte abziehen!
+        if ((selectedCategory === "Kat 3" || selectedCategory === "Kat 5") && selectedPoints === 90) {
+            ptsToAdd = -90;
+        }
+
+        scores[selectedGroup] += ptsToAdd;
+
+        // In localStorage speichern
+        localStorage.setItem('scores', JSON.stringify(scores));
+
         updateScoreboard();
-
-        // Eingaben zurücksetzen (optional, behält Kategorie ggf. bei)
-        // Hier setzen wir alles zurück für die nächste Runde:
         resetSelection();
     }
 
@@ -258,13 +396,13 @@
         selectedPoints = null;
         selectedGroup = null;
         document.querySelectorAll('.card button').forEach(b => {
-            if(!b.classList.contains('submit-btn') && !b.classList.contains('reset-btn')) {
+            if(!b.classList.contains('submit-btn') && !b.classList.contains('reset-btn') && !b.classList.contains('edit-btn')) {
                 b.classList.remove('selected');
             }
         });
+        document.getElementById('rule-notice').style.display = 'none';
     }
 
-    // Tabelle aktualisieren
     function updateScoreboard() {
         const tbody = document.getElementById('scoreboard-body');
         tbody.innerHTML = '';
@@ -279,17 +417,16 @@
         });
     }
 
-    // Alles zurücksetzen
     function resetData() {
-        if(confirm("Wirklich alle Punkte auf 0 zurücksetzen?")) {
-            groups.forEach(g => scores[g] = 0);
+        if (confirm("Möchtest du alle Punkte wirklich auf 0 zurücksetzen? (Die Gruppennamen bleiben erhalten)")) {
+            groupNames.forEach(g => scores[g] = 0);
+            localStorage.setItem('scores', JSON.stringify(scores));
             updateScoreboard();
             resetSelection();
         }
     }
 
-    // Starten beim Laden
-    window.onload = initUI;
+    window.onload = init;
 </script>
 
 </body>
